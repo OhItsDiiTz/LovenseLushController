@@ -32,7 +32,10 @@ namespace LovenseLushController
                     if (LovenseSettings.OnBreakVibrate)
                     {
                         Plugin.VibrateToy(LovenseSettings.RandomizedIntensity ? (UnityEngine.Random.Range(1, 20)) : Plugin.Map1to20(ival1, ival));
-                        Plugin.VibrateStop();
+                        if (!LovenseSettings.isItemGrabbed)
+                        {
+                            Plugin.VibrateStop();
+                        }
                     }
                     //Plugin.Logger.LogInfo($"{valObj.valuePreset.valueMin} {valObj.valuePreset.valueMax} {value} {Plugin.Map1to20(ival1, ival)}");
                 }

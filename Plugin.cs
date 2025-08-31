@@ -181,6 +181,32 @@ public class Plugin : BaseUnityPlugin
         }
         Plugin.Logger.LogInfo($"Plugin.VibrateToy({intensity})");
     }
+    //public static void VibrateToy(int intensity)
+    //{
+    //    // Force hardcore override if not in testing
+    //    if (!LovenseSettings.Testing && LovenseSettings.HardCoreMode)
+    //        intensity = 20;
+    //
+    //    // Decide if we should enqueue or send immediately
+    //    bool shouldEnqueue = LovenseSettings.isItemGrabbed || vibrationQueue.Count > 0;
+    //
+    //    if (shouldEnqueue)
+    //    {
+    //        vibrationQueue.Add(intensity);
+    //        LovenseSettings.isItemGrabbedListEmpty = false;
+    //    }
+    //    else if (!LovenseSettings.Testing)
+    //    {
+    //        // Send vibration directly
+    //        LovenseBLETools.GetInstance().SendCommand(
+    //            LovenseSettings.ToyId,
+    //            new LovenseCommand { commandType = LovenseCommandType.VIBRATE, value = intensity }
+    //        );
+    //    }
+    //
+    //    Plugin.Logger.LogInfo($"Plugin.VibrateToy({intensity})");
+    //}
+
 
     public static void VibrateStop()
     {
@@ -200,6 +226,58 @@ public class ImGuiBehaviour : MonoBehaviour
     private Vector2 resizeStartMouse;
     private Vector2 resizeStartSize;
 
+    public void RunQueue()
+    {
+        if (LovenseSettings.isItemGrabbed)
+            return; // nothing to do while item is grabbed
+
+        LovenseSettings.isItemGrabbedTick++;
+
+        if (LovenseSettings.isItemGrabbedTick <= LovenseSettings.isItemGrabbedTickMax)
+            return; // wait until tick threshold is reached
+
+        LovenseSettings.isItemGrabbedTick = 0; // reset tick
+
+        // Case 1: vibration queue has something
+        if (Plugin.vibrationQueue.Count > 0)
+        {
+            int vib = Plugin.vibrationQueue[0];
+            Plugin.vibrationQueue.RemoveAt(0);
+
+            if (LovenseSettings.Enabled)
+            {
+                Plugin.Logger.LogInfo($"Queued Vibrate {vib}");
+
+                if (!LovenseSettings.Testing)
+                {
+                    LovenseBLETools.GetInstance().SendCommand(
+                        LovenseSettings.ToyId,
+                        new LovenseCommand { commandType = LovenseCommandType.VIBRATE, value = vib }
+                    );
+                }
+            }
+
+            return;
+        }
+
+        // Case 2: empty queue but "not yet marked empty"
+        if (!LovenseSettings.isItemGrabbedListEmpty)
+        {
+            Plugin.Logger.LogInfo("Queued Vibrate 0");
+
+            if (!LovenseSettings.Testing)
+            {
+                LovenseBLETools.GetInstance().SendCommand(
+                    LovenseSettings.ToyId,
+                    new LovenseCommand { commandType = LovenseCommandType.VIBRATE, value = 0 }
+                );
+            }
+
+            LovenseSettings.isItemGrabbedListEmpty = true;
+        }
+
+    }
+
     public void OnGUI()
     {
 
@@ -207,13 +285,16 @@ public class ImGuiBehaviour : MonoBehaviour
         {
             if (LovenseSettings.isItemGrabbedTick > (int)(LovenseSettings.isItemGrabbedTickMax))
             {
-                if (Plugin.vibrationQueue.Count != 0)
+                if (Plugin.vibrationQueue.Count >= 1)
                 {
                     int vib = Plugin.vibrationQueue[0];
                     if (LovenseSettings.Enabled)
                     {
                         Plugin.Logger.LogInfo($"Queued Vibrate {vib}");
-                        //LovenseBLETools.GetInstance().SendCommand(LovenseSettings.ToyId, new LovenseCommand() { commandType = LovenseCommandType.VIBRATE, value = vib });
+                        if (!LovenseSettings.Testing)
+                        {
+                            LovenseBLETools.GetInstance().SendCommand(LovenseSettings.ToyId, new LovenseCommand() { commandType = LovenseCommandType.VIBRATE, value = vib });
+                        }
                     }
                     Plugin.vibrationQueue.RemoveAt(0);
                 }
@@ -222,7 +303,10 @@ public class ImGuiBehaviour : MonoBehaviour
                     if (!LovenseSettings.isItemGrabbedListEmpty)
                     {
                         Plugin.Logger.LogInfo($"Queued Vibrate 0");
-                        //LovenseBLETools.GetInstance().SendCommand(LovenseSettings.ToyId, new LovenseCommand() { commandType = LovenseCommandType.VIBRATE, value = 0 });
+                        if (!LovenseSettings.Testing)
+                        {
+                            LovenseBLETools.GetInstance().SendCommand(LovenseSettings.ToyId, new LovenseCommand() { commandType = LovenseCommandType.VIBRATE, value = 0 });
+                        }
                         LovenseSettings.isItemGrabbedListEmpty = true;
                     }
                 }
@@ -230,6 +314,8 @@ public class ImGuiBehaviour : MonoBehaviour
             }
             LovenseSettings.isItemGrabbedTick++;
         }
+
+        //RunQueue();
 
 
         if (PlayerController.instance)
@@ -341,11 +427,14 @@ public class ImGuiBehaviour : MonoBehaviour
         Plugin.Logger.LogInfo($"--- Done dumping {go.name} ---");
     }
 
+    public bool ShouldShow()
+    {
+        return !LovenseSettings.RandomizedIntensity;
+    }
+
+
     public void DrawWindow(int windowID)
     {
-
-        
-
 
         GUILayout.BeginVertical();
 
@@ -419,16 +508,6 @@ public class ImGuiBehaviour : MonoBehaviour
 
                 LovenseSettings.OnBreakVibrate = GUILayout.Toggle(LovenseSettings.OnBreakVibrate, "OnBreak Vibrate");
 
-                LovenseSettings.OnEyeLockonVibrate = GUILayout.Toggle(LovenseSettings.OnEyeLockonVibrate, "Eye Stare Lock Vibrate");
-                if (LovenseSettings.OnEyeLockonVibrate)
-                {
-                    if ((!LovenseSettings.RandomizedIntensity || LovenseSettings.HardCoreMode))
-                    {
-                        GUILayout.Label($"Eye Stare Lock Intensity {Convert.ToInt32(LovenseSettings.EyeLockonIntensity)}");
-                        LovenseSettings.EyeLockonIntensity = GUILayout.HorizontalSlider(LovenseSettings.EyeLockonIntensity, 0.0f, 20.0f);
-                    }
-                }
-
                 //LovenseSettings.OnHealOthersVibrate = GUILayout.Toggle(LovenseSettings.OnHealOthersVibrate, "Heal Others Vibrate");
                 //if (LovenseSettings.OnHealOthersVibrate)
                 //{
@@ -439,7 +518,7 @@ public class ImGuiBehaviour : MonoBehaviour
                 LovenseSettings.OnPlayerDeathVibrate = GUILayout.Toggle(LovenseSettings.OnPlayerDeathVibrate, "Death Vibrate");
                 if (LovenseSettings.OnPlayerDeathVibrate)
                 {
-                    if ((!LovenseSettings.RandomizedIntensity || LovenseSettings.HardCoreMode))
+                    if (ShouldShow())
                     {
                         GUILayout.Label($"Death Intensity {Convert.ToInt32(LovenseSettings.PlayerDeathIntensity)}");
                         LovenseSettings.PlayerDeathIntensity = GUILayout.HorizontalSlider(LovenseSettings.PlayerDeathIntensity, 0.0f, 20.0f);
@@ -449,7 +528,7 @@ public class ImGuiBehaviour : MonoBehaviour
                 LovenseSettings.OnGrabStartedVibrate = GUILayout.Toggle(LovenseSettings.OnGrabStartedVibrate, "Grab Start Vibrate");
                 if (LovenseSettings.OnGrabStartedVibrate)
                 {
-                    if ((!LovenseSettings.RandomizedIntensity || LovenseSettings.HardCoreMode))
+                    if (ShouldShow())
                     {
                         GUILayout.Label($"Grab Start Intensity {Convert.ToInt32(LovenseSettings.GrabStartedVibrateIntensity)}");
                         LovenseSettings.GrabStartedVibrateIntensity = GUILayout.HorizontalSlider(LovenseSettings.GrabStartedVibrateIntensity, 0.0f, 20.0f);
@@ -459,27 +538,17 @@ public class ImGuiBehaviour : MonoBehaviour
                 LovenseSettings.OnCrownGrabVibrate = GUILayout.Toggle(LovenseSettings.OnCrownGrabVibrate, "Crown Grab Vibrate");
                 if (LovenseSettings.OnCrownGrabVibrate)
                 {
-                    if ((!LovenseSettings.RandomizedIntensity || LovenseSettings.HardCoreMode))
+                    if (ShouldShow())
                     {
                         GUILayout.Label($"Crown Grab Intensity {Convert.ToInt32(LovenseSettings.CrownGrabVibrateIntensity)}");
                         LovenseSettings.CrownGrabVibrateIntensity = GUILayout.HorizontalSlider(LovenseSettings.CrownGrabVibrateIntensity, 0.0f, 20.0f);
                     }
                 }
 
-                LovenseSettings.OnGlobalImpactVibrate = GUILayout.Toggle(LovenseSettings.OnGlobalImpactVibrate, "Global Impact Vibrate");
-                if (LovenseSettings.OnGlobalImpactVibrate)
-                {
-                    if ((!LovenseSettings.RandomizedIntensity || LovenseSettings.HardCoreMode))
-                    {
-                        GUILayout.Label($"Global Impact Intensity {Convert.ToInt32(LovenseSettings.GlobalImpactVibrateIntensity)}");
-                        LovenseSettings.GlobalImpactVibrateIntensity = GUILayout.HorizontalSlider(LovenseSettings.GlobalImpactVibrateIntensity, 0.0f, 20.0f);
-                    }
-                }
-
                 LovenseSettings.AllowChatBoops = GUILayout.Toggle(LovenseSettings.AllowChatBoops, "Chat Boop Vibrate");
                 if (LovenseSettings.AllowChatBoops)
                 {
-                    if ((!LovenseSettings.RandomizedIntensity || LovenseSettings.HardCoreMode))
+                    if (ShouldShow())
                     {
                         GUILayout.Label($"Chat Boop Intensity {Convert.ToInt32(LovenseSettings.AllowChatBoopsIntensity)}");
                         LovenseSettings.AllowChatBoopsIntensity = GUILayout.HorizontalSlider(LovenseSettings.AllowChatBoopsIntensity, 0.0f, 20.0f);
@@ -523,149 +592,6 @@ public class ImGuiBehaviour : MonoBehaviour
 
 }
 
-public class ImGuiFullPlayground : MonoBehaviour
-{
-    private Rect windowRect = new Rect(20, 20, 500, 600);
-
-    // Values for controls
-    private bool toggleValue = true;
-    private int toolbarIndex = 0;
-    private int selectionGridIndex = 0;
-    private float sliderValue = 25f;
-    private float verticalSliderValue = 50f;
-    private string textFieldValue = "Editable text";
-    private string passwordValue = "secret";
-    private string textAreaValue = "Multiline\nText\nHere";
-    private Vector2 scrollPosition = Vector2.zero;
-    private int gridCols = 3;
-
-    private Color pickedColor = Color.green;
-
-    void OnGUI()
-    {
-        // Top-level window
-        windowRect = GUI.Window(123, windowRect, DrawWindow, "IMGUI Showcase");
-    }
-
-    void DrawWindow(int id)
-    {
-        GUILayout.BeginVertical();
-
-        ///GUILayout.Label("🎨 Labels and Basic Controls");
-        ///GUILayout.Label("This is a normal label.");
-        ///GUILayout.Label("Bold label", GUI.skin.GetStyle("label"));
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///// Toggle
-        ///toggleValue = GUILayout.Toggle(toggleValue, "Enable Option?");
-        ///GUILayout.Label("Toggle is " + (toggleValue ? "ON" : "OFF"));
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///// Button
-        ///if (GUILayout.Button("Click Me"))
-        ///{
-        ///    Debug.Log("Button clicked!");
-        ///}
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///// Repeat Button
-        ///if (GUILayout.RepeatButton("Hold Me"))
-        ///{
-        ///    Debug.Log("Repeat Button held down!");
-        ///}
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///GUILayout.Label("📝 Text Input");
-        ///textFieldValue = GUILayout.TextField(textFieldValue, 50);
-        ///passwordValue = GUILayout.PasswordField(passwordValue, '*', 25);
-        ///textAreaValue = GUILayout.TextArea(textAreaValue, GUILayout.Height(60));
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///GUILayout.Label("🎚 Sliders");
-        ///sliderValue = GUILayout.HorizontalSlider(sliderValue, 0f, 100f);
-        ///GUILayout.Label("Horizontal Slider: " + sliderValue.ToString("F1"));
-        ///
-        ///verticalSliderValue = GUILayout.VerticalSlider(verticalSliderValue, 100f, 0f, GUILayout.Height(100));
-        ///GUILayout.Label("Vertical Slider: " + verticalSliderValue.ToString("F1"));
-        ///
-        ///GUILayout.Space(10);
-
-        ///GUILayout.Label("🔲 Toolbars and Grids");
-        ///toolbarIndex = GUILayout.Toolbar(toolbarIndex, new string[] { "One", "Two", "Three" });
-        ///GUILayout.Label("Toolbar selection: " + toolbarIndex);
-        ///
-        ///selectionGridIndex = GUILayout.SelectionGrid(selectionGridIndex, new string[] { "A", "B", "C", "D", "E", "F" }, gridCols);
-        ///GUILayout.Label("Grid selection: " + selectionGridIndex);
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///GUILayout.Label("📜 Scroll View");
-        ///scrollPosition = GUILayout.BeginScrollView(scrollPosition, GUILayout.Height(100));
-        ///for (int i = 0; i < 20; i++)
-        ///{
-        ///    GUILayout.Label("Scrollable item " + i);
-        ///}
-        ///GUILayout.EndScrollView();
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///GUILayout.Label("🎨 Box, HelpBox, and Groups");
-        ///
-        ///GUILayout.Box("This is a box!");
-        ///EditorGUILayoutHelpBox("This is a HelpBox (editor only, use GUI.Box in runtime).", MessageType.Info);
-        ///
-        ///GUILayout.BeginHorizontal("box");
-        ///GUILayout.Label("Inside a horizontal group (boxed)");
-        ///if (GUILayout.Button("OK", GUILayout.Width(50))) { }
-        ///GUILayout.EndHorizontal();
-        ///
-        ///GUILayout.BeginVertical("box");
-        ///GUILayout.Label("Inside a vertical group (boxed)");
-        ///GUILayout.Button("Another button");
-        ///GUILayout.EndVertical();
-        ///
-        ///GUILayout.Space(10);
-        ///
-        ///GUILayout.Label("🎨 Custom Styles");
-        ///GUIStyle customStyle = new GUIStyle(GUI.skin.button);
-        ///customStyle.fontSize = 18;
-        ///customStyle.normal.textColor = Color.red;
-        ///if (GUILayout.Button("Styled Button", customStyle))
-        ///{
-        ///    Debug.Log("Styled button clicked!");
-        ///}
-        ///
-        ///GUILayout.Space(10);
-
-        GUILayout.EndVertical();
-
-        GUI.DragWindow(new Rect(0, 0, 10000, 20));
-    }
-
-    // Utility: mimic EditorGUILayout.HelpBox in runtime
-    void EditorGUILayoutHelpBox(string message, MessageType type)
-    {
-        Color prev = GUI.color;
-        switch (type)
-        {
-            case MessageType.Error: GUI.color = Color.red; break;
-            case MessageType.Warning: GUI.color = Color.yellow; break;
-            case MessageType.Info: GUI.color = Color.cyan; break;
-        }
-        GUILayout.Box(message);
-        GUI.color = prev;
-    }
-
-    enum MessageType { Info, Warning, Error }
-}
-
-
-
 public class LovenseSettings
 {
     public static string ToyId = "";
@@ -687,10 +613,6 @@ public class LovenseSettings
     //Done
     public static bool OnBreakVibrate; //Automatically adjust intensity
 
-    //Done
-    public static bool OnEyeLockonVibrate;
-    public static float EyeLockonIntensity;
-
     //Working on
     public static bool OnHealOthersVibrate;
     public static float HealOthersIntensity;
@@ -710,10 +632,6 @@ public class LovenseSettings
     //Done
     public static bool OnCrownGrabVibrate;
     public static float CrownGrabVibrateIntensity;
-
-    //Done
-    public static bool OnGlobalImpactVibrate;
-    public static float GlobalImpactVibrateIntensity;
 
     //Done
     public static bool AllowChatBoops;
