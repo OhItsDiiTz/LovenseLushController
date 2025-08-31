@@ -346,7 +346,7 @@ public class ImGuiBehaviour : MonoBehaviour
                 case KeyCode.F1:
                     showMenu = !showMenu;
                     break;
-                case KeyCode.F2:
+                case KeyCode.F2: //This should only ever be used for testing and if you do not actually own a toy (I do not)
                     LovenseSettings.ToyId = "testing toy";
                     LovenseSettings.Testing = true;
                     break;
