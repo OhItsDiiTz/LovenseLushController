@@ -27,4 +27,4 @@ This has been something I've wanted to do for a while. I finally got around to i
 - [Harmony Docs](https://harmony.pardeike.net/articles/intro.html)
 - [dnSpy](https://dnspy.org/)
 
-Anyways you little freaks that will use this enjoy and idk maybe update it?
+Anyways you little freaks that will use this enjoy and idk maybe update it? OR you could join my [discord](https://discord.gg/bskh4ZG32J) and ask about updates or something idk

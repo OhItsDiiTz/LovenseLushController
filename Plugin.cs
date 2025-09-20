@@ -429,7 +429,7 @@ public class ImGuiBehaviour : MonoBehaviour
 
     public bool ShouldShow()
     {
-        return !LovenseSettings.RandomizedIntensity;
+        return true; // !LovenseSettings.RandomizedIntensity;
     }
 
 
@@ -438,7 +438,7 @@ public class ImGuiBehaviour : MonoBehaviour
 
         GUILayout.BeginVertical();
 
-        LovenseSettings.DebugKeys = GUILayout.Toggle(LovenseSettings.DebugKeys, "Enable Key Debug");
+        LovenseSettings.DebugKeys = GUILayout.Toggle(LovenseSettings.DebugKeys, "Enable Debug");
 
         LovenseSettings.Enabled = GUILayout.Toggle(LovenseSettings.Enabled, "Enable Lovense Usage");
 
@@ -465,6 +465,7 @@ public class ImGuiBehaviour : MonoBehaviour
                     if (GUILayout.Button("Stop Scan"))
                     {
                         LovenseBLETools.GetInstance().StopBLEScan();
+                        LovenseSettings.Scanning = false;
                     }
                 }
             }
@@ -472,35 +473,45 @@ public class ImGuiBehaviour : MonoBehaviour
             {
                 GUILayout.Label($"Toy Connected: {LovenseSettings.ToyId}");
 
-                LovenseSettings.TestingMode = GUILayout.Toggle(LovenseSettings.TestingMode, "Testing Mode");
+                //if (GUILayout.Button("Disconnect Toy"))
+                //{
+                //    LovenseBLETools.GetInstance().DisConnectToy(LovenseSettings.ToyId);
+                //    LovenseSettings.ToyId = "";
+                //}
 
-                if (GUILayout.Button("Add 10 Health"))
+                if (LovenseSettings.DebugKeys)
                 {
-                    if (PlayerController.instance)
+
+                    LovenseSettings.TestingMode = GUILayout.Toggle(LovenseSettings.TestingMode, "Testing Mode");
+
+                    if (GUILayout.Button("Add 10 Health"))
                     {
-                        if (PlayerController.instance.playerAvatarScript)
+                        if (PlayerController.instance)
                         {
-                            if (PlayerController.instance.playerAvatarScript.playerHealth)
+                            if (PlayerController.instance.playerAvatarScript)
                             {
-                                PlayerController.instance.playerAvatarScript.playerHealth.Heal(10, false);
+                                if (PlayerController.instance.playerAvatarScript.playerHealth)
+                                {
+                                    PlayerController.instance.playerAvatarScript.playerHealth.Heal(10, false);
+                                }
                             }
                         }
                     }
-                }
 
-                if (GUILayout.Button("Find Class Parent Object"))
-                {
-                    DumpGameObject("Menu Page Settings(Clone)");
-                    //var objs = GameObject.FindObjectsOfType<MenuPage>();
-                    //foreach (var o in objs)
-                    //{
-                    //    Debug.Log($"Found {o.GetType().Name} on GameObject: {o.gameObject.name}");
-                    //}
-                }
+                    if (GUILayout.Button("Find Class Parent Object"))
+                    {
+                        DumpGameObject("Menu Page Settings(Clone)");
+                        //var objs = GameObject.FindObjectsOfType<MenuPage>();
+                        //foreach (var o in objs)
+                        //{
+                        //    Debug.Log($"Found {o.GetType().Name} on GameObject: {o.gameObject.name}");
+                        //}
+                    }
 
-                if (GUILayout.Button("Test Menu"))
-                {
-                    //MenuManager.instance.PagePopUp("Save file limit reached", Color.red, "You can only have 10 save files at a time. Please delete some save files to make room for new ones.", "OK", true);
+                    if (GUILayout.Button("Test Menu"))
+                    {
+                        //MenuManager.instance.PagePopUp("Save file limit reached", Color.red, "You can only have 10 save files at a time. Please delete some save files to make room for new ones.", "OK", true);
+                    }
                 }
 
                 LovenseSettings.HardCoreMode = GUILayout.Toggle(LovenseSettings.HardCoreMode, "Hardcore Mode");
